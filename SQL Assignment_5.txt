@@ -1,0 +1,101 @@
+SQL Assignment N5
+
+====================================================================================
+Task N1 - შექმენით ცხრილი - Transactions, რომელსაც აქვს შემდეგი სვეტები: 
+- Transaction Date ( date time format), 
+- Transaction amount 
+- Transaction currency 
+- transaction fee 
+- fee currency 
+- Sender_id  
+- Beneficiar_id
+- transaction_status  
+
+მონაცემთა ტიპები თქვენ განსაზღვრეთ. დაამატეთ 10-15-მდე ტრანზაქცია, თქვენი კრეატივით (სასურველია სხვა და სხვა ვალუტა).
+
+დაამატეთ სვეტები: 
+- Transaction_amount_in_Gel  - (გაცვლითი კურსი თავად ნახეთ და დამიმატეთ ექვივალენტები ლარში)
+- Transaction_type
+
+დაამატეთ Transaction Type სვეტი შემდეგი წესით: 
+
+ 1. თუ უცხოური ვალუტა არის International Transaction 
+ 2. თუ ეროვნული Standard Transaction 
+ 3. თუ მიმღები და გამგზავნი იგივე ტიპია Internal 
+
+წაშალეთ ყველა ტრანზაქცია რომელიც განხორციელდა ლუწ დღეს.
+
+====================================================================================
+- The answer to Task N1 
+
+
+=> ცხრილის შექმნა
+
+CREATE TABLE Transactions (
+    Transaction_ID INT PRIMARY KEY,
+    Transaction_Date DATETIME,
+    Transaction_Amount FLOAT,
+    Transaction_Currency VARCHAR(20),
+    Transaction_Fee FLOAT,
+    Fee_Currency VARCHAR(20),
+    Sender_ID INT,
+    Beneficiary_ID INT,
+    Transaction_Status VARCHAR(100));
+
+select *
+from Transactions
+
+
+=> ტრანზაქციების დამატება ცხრილში 
+
+INSERT INTO Transactions (Transaction_ID, Transaction_Date, Transaction_Amount, Transaction_Currency, Transaction_Fee, 
+                          Fee_Currency, Sender_ID, Beneficiary_ID, Transaction_Status) VALUES
+            (1, '2024-08-01 10:15:00', 1000.00, 'USD', 6.50, 'USD', 1, 2, 'Completed'),
+            (2, '2024-08-02 14:30:00', 500.00, 'EUR', 3.50, 'EUR', 3, 4, 'Completed'),
+            (3, '2024-08-03 09:45:00', 200.00, 'GBP', 2.00, 'GBP', 5, 6, 'Completed'),
+            (4, '2024-08-04 16:20:00', 3000.00, 'GEL', 8.50, 'GEL', 7, 8, 'Completed'),
+            (5, '2024-08-05 11:00:00', 750.00, 'USD', 3.75, 'USD', 9, 10, 'Completed'),
+            (6, '2024-08-06 13:45:00', 1500.00, 'EUR', 3.50, 'EUR', 11, 12, 'Completed'),
+            (7, '2024-08-07 15:30:00', 100.00, 'GEL', 1.25, 'GEL', 13, 13, 'Completed'),
+            (8, '2024-08-08 10:00:00', 2000.00, 'USD', 10.00, 'USD', 14, 15, 'Completed'),
+            (9, '2024-08-19 12:15:00', 300.00, 'GBP', 1.50, 'GBP', 16, 17, 'Completed'), 
+            (10, '2024-08-21 17:00:00', 5000.00, 'GEL', 6.00, 'GEL', 18, 19, 'Completed'),
+            (11, '2024-08-22 08:30:00', 1200.00, 'USD', 6.00, 'USD', 20, 21, 'Completed'),
+            (12, '2024-08-23 14:00:00', 800.00, 'EUR', 4.00, 'EUR', 22, 23, 'Completed'),
+            (13, '2024-08-24 11:45:00', 150.00, 'GBP', 1.75, 'GBP', 24, 25, 'Completed'),
+            (14, '2024-08-26 16:30:00', 4000.00, 'GEL', 5.75, 'GEL', 26, 26, 'Completed'),
+            (15, '2024-08-30 09:15:00', 600.00, 'USD', 3.00, 'USD', 27, 28, 'Completed');
+
+
+=> ახალი სვეტების დამატება 
+
+ALTER TABLE Transactions
+ADD Transaction_Amount_in_GEL FLOAT,
+    Transaction_Type VARCHAR(100);
+
+select *
+from Transactions
+
+
+=> Transaction_Amount_In_Gel სვეტში - კონვერტირებული მონაცემების შეყვანა (ტრანზაქციის მოცულობის გადაყვანა ექვივალენტ ლარში) და Transaction_type-ის მონაცემების შეყვანა ტრანზაქციების სეგმენტაციით. 
+
+UPDATE Transactions
+SET Transaction_Amount_in_GEL = CASE WHEN Transaction_Currency = 'USD' THEN Transaction_Amount * 2.7
+                                     WHEN Transaction_Currency = 'EUR' THEN Transaction_Amount * 3.0
+                                     WHEN Transaction_Currency = 'GBP' THEN Transaction_Amount * 3.5
+                                     ELSE Transaction_Amount END,
+    Transaction_Type = CASE WHEN Sender_ID = Beneficiary_ID THEN 'Internal'
+	                        WHEN Transaction_Currency = 'GEL' THEN 'Standard Transaction'
+                            WHEN Transaction_Currency != 'GEL' AND Sender_ID != Beneficiary_ID THEN 'International Transaction' END;
+
+select *
+from Transactions
+
+
+=> ლუწ დღეებში განხორციელებული ტრანზაქციების წაშლა
+
+DELETE FROM Transactions
+WHERE DAY(Transaction_Date) % 2 = 0;
+
+
+====================================================================================

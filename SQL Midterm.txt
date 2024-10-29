@@ -1,0 +1,108 @@
+SQL Midterm - 20 Points
+
+====================================================================================
+Task N1 - მომხმარებლები რომელთაც პირველი აპლიკაცია ქონდათ წინასწარ დამტკიცებული (Pre-Approved) და ამ პოზიტიური სტატუსის შემდეგ დაისვენეს 6 თვეზე ნაკლები შემდეგ აპლიკაციამდე გვჭირდება მათი: 
+• პირადი ნომერი,
+• სახლი და გვარი ერთად,
+• ასაკი,
+• შემოსავალი,
+• ტელეფონის ნომერი,
+• სქესი,
+• ჯამში მოთხოვნილი აპლიკაციების რაოდენობა და მოცულობა,
+• ბოლოს მოთხოვნილი აპლიკაციის თარიღი,
+• ბოლოს მოთხოვნილი აპლიკაციიდან გასული თვეების რაოდენობა.
+
+====================================================================================
+- The answer to Task N1 
+
+WITH Find_First_Pre_Approved_Application AS (
+     SELECT A.client_id AS [Client ID],
+            A.application_date AS [Application Date],
+            Row_number() OVER (partition BY A.client_id ORDER BY A.application_date) AS Date_Index
+     FROM applications AS A
+     WHERE A.application_status_id = 9
+),
+From_First_PA_To_Second_Application AS (
+     SELECT A.[client id],
+            A.[application date] AS [First Pre-Approved Application Date],
+            B.[application date] AS [Second Application Date],
+            Datediff(month, A.[application date], B.[application date]) AS [Months Between First and Second Application]
+     FROM find_first_pre_approved_application AS A
+     LEFT JOIN (SELECT A.client_id AS [Client ID],
+                       A.application_date AS [Application Date],
+                       Row_number() OVER (partition BY A.client_id ORDER BY A.application_date) AS Date_Index
+                FROM applications AS A) AS B ON A.[client id] = B.[client id] AND
+                                                B.[application date] > A.[application date] AND 
+												B.date_index = A.date_index + 1
+     WHERE  A.date_index = 1
+),
+Application_Details_Counter AS (
+     SELECT A.client_id AS [Client ID],
+            Count(A.application_id) AS [Number of Applications],
+            Sum(A.application_amount) AS [Total Application Amount],
+            Max(A.application_date) AS [Latest Application Date]
+     FROM applications AS A
+     GROUP BY A.client_id
+)
+
+SELECT A.[Client ID],
+       B.personal_code AS [Personal ID],
+       Concat(B.first_name, ' ', B.last_name) AS [Full Name of User],
+       Floor(Datediff(month, B.birth_date, Getdate()) / 12) AS [Age],
+       B.customer_income AS [Customer Monthly Income],
+       B.phone_number AS [Phone Number],
+       B.gender AS [Gender],
+       C.[Number of Applications],
+       C.[Total Application Amount],
+       C.[Latest Application Date],
+       Datediff(month, C.[latest application date], Getdate()) AS
+       [Number of Months Since Last Application]
+FROM From_First_PA_To_Second_Application AS A
+LEFT JOIN customer AS B ON A.[client id] = B.id
+LEFT JOIN Application_Details_Counter AS C ON A.[client id] = C.[client id]
+WHERE A.[months between first and second application] < 6
+ORDER BY A.[client id] 
+
+
+====================================================================================
+Task N2 - დაწერეთ ფუნქცია, რომელსაც გადავცემ ობიექტის დასახელებას, წელს და პროდუქტს და ფუნქცია დააბრუნებს ამ ობიექტზე ამ წლის ჭრილში ამ პროდუქტზე შევსებული აპლიკაციების რაოდენობას.
+
+====================================================================================
+- The answer to Task N2
+
+CREATE FUNCTION Application_Counter (
+    @Object_Name VARCHAR(100),
+    @Year INT,
+    @Product_Name VARCHAR(100)
+)
+RETURNS INT
+AS
+  BEGIN
+       DECLARE @Number_of_Applications INT;
+
+       SELECT @Number_of_Applications = COUNT(A.application_id)
+       FROM Applications AS A
+	   LEFT JOIN Object as B ON A.application_object_id = B.object_id
+	   LEFT JOIN Application_type as C ON A.application_type_id = C.application_type_id
+       WHERE B.object_description = @Object_Name AND
+	         YEAR(A.application_date) = @Year AND
+	         C.application_type_description = @Product_Name
+	   
+       RETURN @Number_of_Applications;
+END;
+
+-- Example
+SELECT dbo.Application_Counter('Dighomi Branch # 1', 2024, 'Consumer Loan') AS Number_of_Applications;
+
+
+-- Double-check proving I slay 
+
+SELECT *
+FROM Applications AS A
+LEFT JOIN Object AS B ON A.application_object_id = B.object_id
+LEFT JOIN Application_type AS C ON A.application_type_id = C.application_type_id
+WHERE B.object_description = 'Dighomi Branch # 1' AND
+	  C.application_type_description = 'Consumer Loan' AND
+	  A.application_date >= '2024-01-01'
+
+

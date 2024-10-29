@@ -1,0 +1,101 @@
+SQL Assignment N2
+
+====================================================================================
+Task N1 - ბანკი აპირებს დაასანქციროს რუსი ეროვნების კლიენტები. მჭირდება რუსი კლიენტების:
+• პირადი ნომერი ან პასპორტის ნომერი (რაც წარადგინეს)
+• დოკუმენტის ტიპი
+• სახელი
+• გვარი
+• ეროვნება
+• ქალაქი სადაც ცხოვრობენ
+• ტელეფონის ნომერი
+• შემოსავალი
+====================================================================================
+- The answer to Task N1 
+
+select A.personal_code as [Identification Number],
+       A.document_type as [Document Type],
+       A.first_name as [First Name],
+       A.last_name as [Last Name],
+       B.country_name as [Nationality],
+       C.city_name as [City],
+       A.phone_number as [Phone Number],
+       A.customer_income as [Income]
+from Customer as A
+LEFT JOIN Countries as B ON A.residency_id = B.country_id
+LEFT JOIN City as C ON A.city_id = C.city_id
+where residency_id = 2
+
+
+====================================================================================
+Task N2 - ყველა ონლაინ წყაროზე შევსებული განაცხადის სტატუსი, პროდუქტის ტიპი, აპლიკაციის აიდი, მოცულობა და საპროცენტო განაკვეთი მჭირდება, რომელიც შეივსო 2023-2024-ში.
+====================================================================================
+- The answer to Task N2
+
+select B.application_status_description as [Application Status],
+       C.application_type_description as [Product Type],
+       A.application_id as [Application ID],
+       A.application_amount as [Application Amount],
+       A.application_interest_rate as [Interest Rate]
+from Applications as A
+LEFT JOIN Application_status as B ON A.application_status_id = B.application_status_id
+LEFT JOIN Application_type as C ON A.application_type_id = C.application_type_id
+LEFT JOIN Object as D ON A.application_object_id = D.object_id
+LEFT JOIN Object_Type as E ON D.object_type_id = E.object_type_id
+where A.application_date BETWEEN '2023-01-01' AND '2024-12-31'AND 
+      E.object_type_id = 4
+
+
+====================================================================================
+Task N3 - Online სესიები რომელიც შესრულდა ვერსიაზე: 2.2.6-7 და ქონდა ერორის ტიპი: Server Maintenance. მჭირდება სესიის ტიპის დასახელება, იუზერის აიდი, იუზერის მფლობელის სახელი, გვარი და პირადი ნომერი.
+====================================================================================
+- The answer to Task N3
+
+select B.session_type_name as [Session Type Name],
+       A.user_id as [User ID],
+       D.first_name as [First Name],
+       D.last_name as [Last Name],
+       D.personal_code as [Identification Number]
+from user_sessions as A
+LEFT JOIN Session_type as B ON A.session_type_id = B.session_type_id
+LEFT JOIN users as C ON A.user_id = C.user_id
+LEFT JOIN Customer as D ON C.client_id = D.id
+where A.app_version = '2.2.6-7' AND
+      session_error_type = 'Server Maintenance'
+
+
+====================================================================================
+Task N4 - მჭირდება ყველა ორთაჭალის ფილიალში შევსებული აპლიკაციის აიდი, პროდუქტის დასახელება და მოცულობა 2024 წელს, რომლის სტატუსი არ იყო:
+Incomplete , Escalated და Legal Review.
+====================================================================================
+- The answer to Task N4
+
+select A.application_id as [Application ID],
+       C.application_type_description as [Product Type],
+       A.application_amount as [Application Amount]
+from Applications as A
+LEFT JOIN Object as B ON B.object_id = A.application_object_id
+LEFT JOIN Application_type as C ON A.application_type_id = C.application_type_id
+LEFT JOIN Application_status as D ON A.application_status_id = D.application_status_id
+
+where B.object_description LIKE '%Ortachala%' AND
+      D.application_status_description NOT IN ('Incomplete', 'Escalated', 'Legal Review') AND
+      A.application_date BETWEEN '2024-01-01' AND '2024-12-31'
+
+
+====================================================================================
+Task N5 - 4G-ზე მხოლოდ ერორით შესრულებული სესიის ტიპები მჭირდება 1.-ით დაწყებული აპლიკაციის ვერსიაზე 2021-2022 წლებში. იუზერის აიდი, აპლიკაციის ვერისა, სესიის თარიღი და სესიის ტიპი.
+====================================================================================
+- The answer to Task N5
+
+select A.user_id as [User ID],
+       A.app_version as [Application Version],
+       A.session_date as [Session Date],
+       C.session_type_name as [Session Type]
+from user_sessions as A
+LEFT JOIN Network_type as B ON A.network_type_id = B.network_type_id
+LEFT JOIN Session_type as C ON A.session_type_id = C.session_type_id
+where B.network_type_description = '4G' AND
+      A.session_error_exists = 1 AND 
+      A.app_version LIKE '1.%' AND
+      A.session_date BETWEEN '2021-01-01' AND '2022-12-31'

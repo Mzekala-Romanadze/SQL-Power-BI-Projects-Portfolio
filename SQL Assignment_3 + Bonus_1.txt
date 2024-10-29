@@ -1,0 +1,166 @@
+Bonus Task N1
+====================================================================================
+Single row Function
+მჭირდება კლიენტების სეგმენტაცია შემდეგი ლოგიკით. 
+კლიენტის პირადი ნომერი, სახელი და სეგმენტაციის ლოგიკა რომელიც შედგება 5 რიცხვისგან. მაგალითად: 010240703 - გეგა - 1.1.7.5.2 
+
+როგორ მივანიჭოთ სეგმენტაციის ციფრები? 
+=> პირველი რიცხვი - თუ კლიენტი არის ქართველი: 1, თუ არის არაქართველი და არარუსი: 2, თუ რუსი: 3.
+=> მეორე რიცხვი - თუ შემოსავალი აქვს 1500 ლარამდე: 1, თუ აქვს 1500 - 2000: 2, 2000-3000: 3, 3000-ზე მეტი: 4.
+=> მესამე რიცხვი - თუ ბოლო კლიენტი დარეგისტრირებულია 2020 წლის პირველ ნახევარში (ივლისამდე): 1, 
+თუ დარეგისტრირებულია 2020 ის მეორე ნახევარში (ივლისი და მერე): 2, 
+თუ დარეგისტრირებულია 2021 წელს: 3, თუ დარეგისტრირებულია 2022 წელს: 4, 
+თუ დარეგისტრირებულია 2023 წელს: 5, თუ არ არის დარეგისტრირებული: 6.
+=> მეოთხე რიცხვი - თუ ჯამში მოთხოვნილი აპლიკაციების რაოდენობა კლიენტს აქვს 20 ზე მეტი: 1, 
+თუ აქვს 15 -20: 2, თუ არის 10 -15: 3, თუ არის 10-ზე ნაკლები: 4, თუ არ აქვს აპლიკაციები საერთოდ: 5. 
+=> მეხუთე რიცხვი - თუ კლიენტს საშუალო მოთხოვნილი მოცულობა აქვს 30,000 ზე მეტი: 1, 
+თუ აქვს 20,000-30,000: 2, თუ აქვს 15,000 - 20,000: 3, 15,000 -ზე ნაკლები: 4.
+
+====================================================================================
+
+with COUNTRY_SEGMENTATION as (select A.id as [Client ID],
+                              CASE WHEN A.residency_id = 1 THEN '1'
+	                               WHEN A.residency_id NOT IN (1,2) THEN '2'
+			                       WHEN A.residency_id = 2 THEN '3'
+	                               END AS 'Country Segmentation',
+					          COUNT(*) as [Total Records]
+				              from Customer as A
+					          GROUP BY A.id,
+					                   A.residency_id),
+INCOME_SEGMENTATION as (select A.id as [Client ID],
+                               CASE WHEN A.customer_income < 1500 THEN '1'
+	                                WHEN A.customer_income BETWEEN 1500 AND 2000 THEN '2'
+			                        WHEN A.customer_income BETWEEN 2000 AND 3000 THEN '3'
+			                        WHEN A.customer_income > 3000 THEN '4'
+	                                END AS 'Income Segmentation',
+					           COUNT(*) as [Total Records]
+	                           from Customer as A
+	                           GROUP BY A.id, 
+							            A.customer_income),
+REGISTRATION_SEGMENTATION as (select A.id as [Client ID],
+                                     CASE WHEN B.register_date BETWEEN '2020-01-01' AND '2020-06-30' THEN '1'
+	                                      WHEN B.register_date BETWEEN '2020-07-01' AND '2020-12-31' THEN '2'
+		                                  WHEN B.register_date BETWEEN '2021-01-01' AND '2021-12-31' THEN '3'
+							              WHEN B.register_date BETWEEN '2022-01-01' AND '2022-12-31' THEN '4'
+							 	          WHEN B.register_date BETWEEN '2023-01-01' AND '2023-12-31' THEN '5'
+										  WHEN B.register_date IS NULL THEN '6'									   
+								     END AS 'Registration Segmentation',
+	                                 COUNT(*) [Total Records]
+                                     from Customer as A
+							         LEFT JOIN Users as B ON A.id = B.client_id
+									 GROUP BY A.id,
+					                          B.register_date),
+NUMBER_OF_APPLICATIONS_SEGMENTATION as (select A.id as [Client ID],
+                                               CASE WHEN B.[Number of Applications] > 20 THEN '1'
+	                                                WHEN B.[Number of Applications] BETWEEN 15 AND 20 THEN '2'
+			                                        WHEN B.[Number of Applications] BETWEEN 10 AND 15 THEN '3'
+			                                        WHEN B.[Number of Applications] BETWEEN 0 AND 10 THEN '4'
+			                                        WHEN B.[Number of Applications] IS NULL THEN '5'
+	                                           END AS 'Applications Number Segmentation',
+								               COUNT(*) as [Total Records]
+	                                    from Customer as A 
+										LEFT JOIN (select A.client_id, 
+										                  COUNT(*) as [Number of Applications]
+										           from Applications as A
+												   GROUP BY A.client_id) as B ON A.id = B.client_id
+						                GROUP By A.id, B.[Number of Applications]),
+AVG_APPLICATION_AMOUNT_SEGMENTATION as (select A.client_id as [Client ID],
+                                               CASE WHEN AVG(A.application_amount) > 30000 THEN '1'
+	                                                WHEN AVG(A.application_amount) BETWEEN 20000 AND 30000 THEN '2'
+			                                        WHEN AVG(A.application_amount) BETWEEN 15000 AND 20000 THEN '3'
+			                                        WHEN AVG(A.application_amount) < 15000 THEN '4'
+	                                                END AS 'AVG Application Amount Segmentation',
+						                       SUM(A.application_amount) as [Total Application Amount]
+                                         from Applications as A
+						                 GROUP BY A.client_id)
+
+select A.personal_code as [Personal Code],
+       CONCAT(A.first_name,space(1) + A.last_name) as [Full Name],
+	   CONCAT(B.[Country Segmentation],'.',
+	   C.[Income Segmentation],'.',
+	   D.[Registration Segmentation],'.',
+	   E.[Applications Number Segmentation],'.',
+	   F.[AVG Application Amount Segmentation]) as [User Info Code]
+from Customer as A
+LEFT JOIN COUNTRY_SEGMENTATION as B ON A.id = B.[Client ID]
+LEFT JOIN INCOME_SEGMENTATION as C ON A.id = C.[Client ID]
+LEFT JOIN REGISTRATION_SEGMENTATION as D ON A.id = D.[Client ID]
+LEFT JOIN NUMBER_OF_APPLICATIONS_SEGMENTATION as E ON A.id = E.[Client ID]
+LEFT JOIN AVG_APPLICATION_AMOUNT_SEGMENTATION as F ON A.id = F.[Client ID]
+GROUP BY A.personal_code,
+         CONCAT(A.first_name,space(1) + A.last_name),
+	     B.[Country Segmentation],
+	     C.[Income Segmentation],
+	     D.[Registration Segmentation],
+	     E.[Applications Number Segmentation],
+	     F.[AVG Application Amount Segmentation]
+
+
+
+SQL Assignment N3
+====================================================================================
+Task N1 - ლექციაზე განხილული დავალების ამოხსნა CTE-ის მეშვეობით: თითოეული მომხმარებლისთვის დამითვალეთ პროდუქტების რაოდენობა. Sub query-ით დაგენერირებული მატრიცა შევქმნათ CTE Table-ის გამოყენებით. 
+====================================================================================
+- The answer to Task N1 
+
+with APPLICATION_COUNTER_PER_TYPE as (select A.client_id,
+                                    B.application_type_id,
+                                    COUNT(*) as [Number of Applications]
+                             from Applications as A
+                             LEFT JOIN Application_type as B ON A.application_type_id = B.application_type_id
+                             group by A.client_id, 
+							          B.application_type_id
+                             ),
+APPLICATION_COUNTER as (select A.client_id,
+                               COUNT(*) as [Total Number of Applications]
+                        from Applications as A
+                        group by A.client_id
+					
+						)
+
+select A.id as [User ID],
+       CONCAT(A.first_name,space(1) + A.last_name) as [User Full Name],
+	   SUM(CASE WHEN B.application_type_id = 1 THEN B.[Number of Applications] END) AS [Costumer Loan],
+       SUM(CASE WHEN B.application_type_id = 2 THEN B.[Number of Applications] END) AS [Installment],
+       SUM(CASE WHEN B.application_type_id = 3 THEN B.[Number of Applications] END) AS [Mortgage Loan],
+       SUM(CASE WHEN B.application_type_id = 4 THEN B.[Number of Applications] END) AS [Credit Card],
+       SUM(CASE WHEN B.application_type_id = 5 THEN B.[Number of Applications] END) AS [Credit Line],
+	   C.[Total Number of Applications]
+	   
+from Customer as A
+LEFT JOIN APPLICATION_COUNTER_PER_TYPE as B ON A.id = B.client_id
+LEFT JOIN APPLICATION_COUNTER as C ON A.id = C.client_id
+group by A.id, 
+         CONCAT(A.first_name,space(1) + A.last_name),
+		 C.[Total Number of Applications]
+order by A.id ASC
+
+
+====================================================================================
+Task N2 - კლიენტები რომელთაც 2024 წელს ონლაინ სესიებში ჯამში 130 ზე მეტჯერ მაინც ქონდათ Check Offers/Products ,Check Credit Score ერთად . მჭირდება ჯამში მათი ონლაინ წყაროთი შევსებული აპლიკაციების რაოდენობა და მოცულობა 2024 წელს.
+====================================================================================
+- The answer to Task N2
+
+with SESSIONS_COUNTER as (select C.client_id as [Client ID],
+                                 COUNT(A.session_id) as [Number of Sessions]
+                          from user_sessions as A
+						  LEFT JOIN users as C ON A.user_id = C.user_id
+						  where A.session_date BETWEEN '2024-01-01' AND '2024-12-31' AND
+						        A.session_type_id in (7,8)
+						  GROUP BY C.client_id
+						  Having COUNT(A.session_id) > 130
+                          )
+
+select A.id as [User ID],
+       CONCAT(A.first_name,SPACE(1) + A.last_name) as [User Full Name],
+	   COUNT(C.application_id) as [Number of Online Applications],
+	   SUM(C.application_amount) as [Total Application Amount]
+from Customer as A
+INNER JOIN SESSIONS_COUNTER as B ON A.id = B.[Client ID]
+LEFT JOIN Applications as C ON A.id = C.client_id
+LEFT JOIN Object as D ON C.application_object_id = D.object_id
+where C.application_date BETWEEN '2024-01-01' AND '2024-12-31' AND
+      D.object_type_id = 4
+GROUP BY A.id,
+         CONCAT(A.first_name,SPACE(1) + A.last_name) 
+order by A.id ASC

@@ -1,0 +1,62 @@
+SQL Assignment N4
+
+====================================================================================
+Task N1 - მჭირდება:
+მომხმარებლის პირადი ნომერი, სახელი და გვარი ერთად, ასაკი, ქვეყანა, ქალაქი, პირველად მოთხოვნილი თანხის მოცულობა, ჯამში მოთხოვნილი თანხის მოცულობა, პირველი თანხის წილი ჯამურ გამოცდილებასთან. 
+
+====================================================================================
+- The answer to Task N1 
+
+with TOTAL_APPLICATIONS_AMOUNT_COUNTER as (select A.client_id as [Client ID],
+                                                  SUM(A.application_amount) as [Total Application Amount],
+                                                  COUNT(A.application_id) as [Number of Applications]
+                                           from Applications as A
+									       GROUP BY A.client_id),
+FIRST_APPLICATION_SEARCHER AS (SELECT A.client_id as [Client ID],
+                                      B.application_id as [Application ID],
+									  B.application_date as [Application Date],
+									  B.application_amount as [Application Amount],
+                                      ROW_NUMBER() OVER (PARTITION BY A.client_id ORDER BY B.application_date ASC) AS [ROW NUMBER]
+                               FROM Users AS A
+                               LEFT JOIN Applications AS B ON A.client_id = B.client_id)
+
+
+select A.personal_code as [Personal Code],
+       CONCAT(A.first_name,space(1) + A.last_name) as [User Full Name],
+	   FLOOR(DATEDIFF(MONTH, A.birth_date, GETDATE()) / 12) AS [Age],
+	   B.country_name as [Country],
+	   C.city_name as [City],
+	   E.[Application Amount],
+	   D.[Total Application Amount],
+	   ROUND(CAST(E.[Application Amount] as float)/CAST(D.[Total Application Amount] as float),3) as [LTV]   
+from Customer as A
+LEFT JOIN Countries as B ON A.residency_id = B.country_id
+LEFT JOIN City as C ON A.city_id = C.city_id
+LEFT JOIN TOTAL_APPLICATIONS_AMOUNT_COUNTER as D ON A.id = D.[Client ID]
+LEFT JOIN FIRST_APPLICATION_SEARCHER as E ON A.id = E.[Client ID]
+where E.[ROW NUMBER] = 1
+ORDER BY LTV DESC
+
+
+
+====================================================================================
+Task N2 - მჭირდება: მომხმარებლის პირადი ნომერი, სახელი და გვარი სრულად, საყვარელი პროდუქტი (რაოდენობით განსაზღვრეთ)
+
+====================================================================================
+
+with FAVORITE_PRODUCT_SEARCHER as (select A.client_id as [Client ID],
+                                          B.application_type_description as [Product],
+										  COUNT(A.application_id) AS [Number of Applications],
+                                          ROW_NUMBER() OVER (PARTITION BY A.client_id ORDER BY COUNT(A.application_id) DESC) AS [Product Index]					  
+                                   FROM Applications AS A
+                                   LEFT JOIN Application_type AS B ON A.application_type_id = B.application_type_id
+								   GROUP BY A.client_id, B.application_type_description)
+
+select A.personal_code as [Personal Code],
+       CONCAT(A.first_name,space(1) + A.last_name) as [User Full Name], 
+	   B.Product as [Favorite Product],
+	   B.[Number of Applications] as [Max Number of Purchase]
+from Customer as A
+LEFT JOIN FAVORITE_PRODUCT_SEARCHER as B ON A.id = B.[Client ID]
+where B.[Product Index] = 1
+ORDER BY B.[Number of Applications] DESC
